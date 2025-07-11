@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+pydantic
+jinja2
+pyyaml
+watchdog
+pytest
+httpx
+openapi-spec-validator
+python-dotenv

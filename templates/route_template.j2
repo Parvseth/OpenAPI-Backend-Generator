@@ -1,0 +1,12 @@
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+from db import get_db
+
+router = APIRouter()
+
+{% for endpoint in endpoints %}
+@router.{{ endpoint.method.lower() }}("{{ endpoint.path }}")
+def {{ endpoint.operationId }}({{ endpoint.params }}):
+{{ endpoint.logic }}
+
+{% endfor %}
