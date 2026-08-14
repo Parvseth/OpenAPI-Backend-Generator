@@ -33,6 +33,7 @@ This project combines **0%-hallucination deterministic AST compilation** with **
 - 🧬 **Compiler-Grade Intermediate Representation (IR)**: Full OpenAPI v3.1 spec parser with recursive JSON Pointer `$ref` resolution (`#/components/schemas/`, `#/$defs/`).
 - 🏛️ **Clean 3-Tier Enterprise Architecture**: Generates standardized, decoupled code (`Router → Service Layer → ORM Repository → Database`).
 - 🤖 **AST-Verified Agentic AI Logic (`ast.parse()`)**: Ensures every line of AI-synthesized Python code is syntactically valid before writing to disk.
+- ♻️ **Test-Driven Agentic Self-Healing Loop**: The AI autonomously runs the generated Pytest integration tests in an ephemeral DB. If tests fail (e.g., `ImportError` or `400 Bad Request`), it parses the traceback, diagnoses the bug, and rewrites its own service logic until the tests pass.
 - 🛠️ **Dual Interface (CLI + Web UI)**:
   - **Rich CLI (`openapi-gen`)**: Command-line tool with interactive terminal panels and AST spec inspection.
   - **Streamlit Web Dashboard**: Drag-and-drop spec upload, live AST preview, AI logic toggling, and one-click containerized ZIP project exports.
@@ -66,8 +67,9 @@ This project combines **0%-hallucination deterministic AST compilation** with **
                                    │
                                    ▼
         ┌─────────────────────────────────────────────────────┐
-        │  4. AST Syntax Verifier & Agentic Repair Loop       │
-        │   └─ ast.parse() validation + Self-Correction Retry │
+        │  4. Agentic Self-Healing Loop (AST + Pytest)        │
+        │   ├─ ast.parse() validation + Self-Correction Retry │
+        │   └─ Test-Driven Healing against ephemeral SQLite   │
         └──────────────────────────┬──────────────────────────┘
                                    │
                                    ▼

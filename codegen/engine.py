@@ -3,6 +3,7 @@ from jinja2 import Environment, FileSystemLoader
 from parser.ir_models import IRSpec
 from ai_engine.generator import generate_ai_service_logic
 from ai_engine.formatter import format_python_code
+from ai_engine.self_healing import run_self_healing_loop
 from logger import logger
 
 # Template loader from templates/clean_arch
@@ -20,7 +21,7 @@ def render_and_write(template_name: str, context: dict, target_file_path: str, f
     with open(target_file_path, "w", encoding="utf-8") as f:
         f.write(rendered)
 
-def generate_clean_backend(ir_spec: IRSpec, output_dir: str, use_ai: bool = True):
+def generate_clean_backend(ir_spec: IRSpec, output_dir: str, use_ai: bool = True, test_driven_healing: bool = True):
     logger.info(f"🚀 Starting Codegen Engine for spec: {ir_spec.title} ({len(ir_spec.models)} models, {len(ir_spec.routes)} routes)")
 
     # Root directories
@@ -87,8 +88,13 @@ def generate_clean_backend(ir_spec: IRSpec, output_dir: str, use_ai: bool = True
     render_and_write("main_app.j2", {"models": ir_spec.models, "title": ir_spec.title, "version": ir_spec.version}, os.path.join(app_dir, "main.py"), format_py=True)
 
     # 6. Pytest Suites & Conftest
-    conftest_content = """import pytest
+    conftest_content = """import os
+import pytest
 from fastapi.testclient import TestClient
+
+# Force tests to use an in-memory SQLite database
+os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+
 from app.main import app
 
 @pytest.fixture
@@ -125,3 +131,6 @@ httpx>=0.24.0
         f.write("DATABASE_URL=sqlite:///./backend.db\nSECRET_KEY=super-secret-key-change-me\n")
 
     logger.info(f"✨ Successfully generated clean backend at '{output_dir}'")
+    
+    if use_ai and test_driven_healing:
+        run_self_healing_loop(output_dir)

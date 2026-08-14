@@ -1,6 +1,27 @@
 import pytest
 from fastapi.testclient import TestClient
 
+def test_create_{{ model.name.lower() }}(client: TestClient):
+    payload = {
+{% for field in model.fields %}
+{% if field.name != 'id' and field.required %}
+{% if field.python_type == 'str' %}
+        "{{ field.name }}": "test_string",
+{% elif field.python_type == 'int' %}
+        "{{ field.name }}": 1,
+{% elif field.python_type == 'bool' %}
+        "{{ field.name }}": True,
+{% elif field.python_type == 'float' %}
+        "{{ field.name }}": 1.0,
+{% else %}
+        "{{ field.name }}": "test",
+{% endif %}
+{% endif %}
+{% endfor %}
+    }
+    response = client.post("/api/v1/{{ model.table_name }}/", json=payload)
+    assert response.status_code in (200, 201), response.text
+
 def test_list_{{ model.table_name }}(client: TestClient):
     response = client.get("/api/v1/{{ model.table_name }}/")
     assert response.status_code == 200
