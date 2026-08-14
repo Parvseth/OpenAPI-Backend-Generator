@@ -1,0 +1,36 @@
+import axios from "axios";
+import * as types from "./types";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+
+export const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+{% for model in models %}
+export const {{ model.name }}API = {
+  getAll: async () => {
+    const response = await apiClient.get<types.{{ model.name }}[]>(`/{{ model.name.lower() }}s`);
+    return response.data;
+  },
+  getById: async (id: number) => {
+    const response = await apiClient.get<types.{{ model.name }}>(`/{{ model.name.lower() }}s/${id}`);
+    return response.data;
+  },
+  create: async (data: types.{{ model.name }}Create) => {
+    const response = await apiClient.post<types.{{ model.name }}>(`/{{ model.name.lower() }}s`, data);
+    return response.data;
+  },
+  update: async (id: number, data: types.{{ model.name }}Update) => {
+    const response = await apiClient.put<types.{{ model.name }}>(`/{{ model.name.lower() }}s/${id}`, data);
+    return response.data;
+  },
+  delete: async (id: number) => {
+    const response = await apiClient.delete(`/{{ model.name.lower() }}s/${id}`);
+    return response.data;
+  },
+};
+{% endfor %}

@@ -1,0 +1,25 @@
+// Auto-generated TypeScript types from OpenAPI Schema
+
+{% for model in models %}
+export interface {{ model.name }} {
+{% for field in model.fields %}
+  {{ field.name }}: {% if field.python_type == 'int' %}number{% elif field.python_type == 'float' %}number{% elif field.python_type == 'bool' %}boolean{% else %}string{% endif %};
+{% endfor %}
+}
+
+export interface {{ model.name }}Create {
+{% for field in model.fields %}
+{% if field.name != 'id' %}
+  {{ field.name }}: {% if field.python_type == 'int' %}number{% elif field.python_type == 'float' %}number{% elif field.python_type == 'bool' %}boolean{% else %}string{% endif %};
+{% endif %}
+{% endfor %}
+}
+
+export interface {{ model.name }}Update {
+{% for field in model.fields %}
+{% if field.name != 'id' %}
+  {{ field.name }}?: {% if field.python_type == 'int' %}number{% elif field.python_type == 'float' %}number{% elif field.python_type == 'bool' %}boolean{% else %}string{% endif %};
+{% endif %}
+{% endfor %}
+}
+{% endfor %}

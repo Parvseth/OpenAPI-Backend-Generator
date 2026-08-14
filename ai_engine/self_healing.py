@@ -78,7 +78,7 @@ def run_self_healing_loop(output_dir: str, max_retries: int = 3) -> bool:
             with open(service_path, "r", encoding="utf-8") as f:
                 current_code = f.read()
                 
-            new_code = heal_service_code(client, current_code, error_log)
+            new_code = heal_service_code(client, current_code, error_log, output_dir)
             if new_code:
                 with open(service_path, "w", encoding="utf-8") as f:
                     f.write(new_code)
@@ -112,17 +112,40 @@ def extract_failed_services(error_log: str) -> list[str]:
         
     return list(failed_services)
 
-def heal_service_code(client, current_code: str, error_log: str) -> Optional[str]:
-    """Calls Groq to rewrite the code based on the error log."""
+def heal_service_code(client, current_code: str, error_log: str, output_dir: str) -> Optional[str]:
+    """Calls Groq to rewrite the code based on the error log and multi-file context."""
+    
+    # Read models and schemas context
+    models_code = ""
+    schemas_code = ""
+    try:
+        models_path = os.path.join(output_dir, "app", "models", "models.py")
+        if os.path.exists(models_path):
+            with open(models_path, "r", encoding="utf-8") as f:
+                models_code = f.read()
+                
+        schemas_path = os.path.join(output_dir, "app", "schemas", "schemas.py")
+        if os.path.exists(schemas_path):
+            with open(schemas_path, "r", encoding="utf-8") as f:
+                schemas_code = f.read()
+    except Exception as e:
+        logger.warning(f"Could not read context files: {e}")
+
     prompt = f"""The following service layer code failed integration tests.
 
 CURRENT CODE:
 {current_code}
 
+CONTEXT - SQLAlchemy Models:
+{models_code}
+
+CONTEXT - Pydantic Schemas:
+{schemas_code}
+
 PYTEST OUTPUT:
 {error_log[-2000:]}
 
-Analyze the error and rewrite the entire Python file to fix it. Return ONLY the raw Python code. Do not use Markdown."""
+Analyze the error and rewrite the entire Python service file to fix it. Return ONLY the raw Python code. Do not use Markdown."""
 
     if "ImportError: cannot import name" in error_log:
         prompt += "\n\nHINT: The error is an ImportError. Make sure the class name in your code EXACTLY matches the name being imported."

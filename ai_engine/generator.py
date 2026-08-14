@@ -2,7 +2,7 @@ import os
 import re
 from typing import Optional
 from logger import logger
-from ai_engine.ast_verifier import verify_python_syntax
+from ai_engine.ast_verifier import verify_python_syntax, verify_ast
 from ai_engine.prompts import SYSTEM_PROMPT_SERVICE_LOGIC, SYSTEM_PROMPT_RETRY
 
 # Import Groq dynamically or fallback safely if API key missing
@@ -94,14 +94,20 @@ except Exception as e:
 
             is_valid, err_msg = verify_python_syntax(test_wrapped_code)
             if is_valid:
-                logger.info(f"✅ AI generated valid logic for {method} {path} (Attempt {attempt})")
-                return clean_code
-
-            logger.warning(f"⚠️ AI code failed AST verification (Attempt {attempt}/{max_retries}): {err_msg}")
+                # Syntax is valid, now run SAST security scan
+                is_secure, sec_err_msg = verify_ast(test_wrapped_code)
+                if is_secure:
+                    logger.info(f"✅ AI generated valid & secure logic for {method} {path} (Attempt {attempt})")
+                    return clean_code
+                else:
+                    logger.warning(f"⚠️ AI code failed Security SAST verification (Attempt {attempt}/{max_retries})")
+                    err_msg = sec_err_msg
+            else:
+                logger.warning(f"⚠️ AI code failed AST verification (Attempt {attempt}/{max_retries}): {err_msg}")
             
             # Prepare self-repair prompt
             system_prompt = SYSTEM_PROMPT_RETRY
-            current_prompt = f"The following code failed syntax check:\n\n{clean_code}\n\nError details:\n{err_msg}\n\nPlease fix and return corrected Python code ONLY."
+            current_prompt = f"The following code failed verification:\n\n{clean_code}\n\nError details:\n{err_msg}\n\nPlease fix and return corrected Python code ONLY."
 
         except Exception as e:
             logger.error(f"Error calling LLM API (Attempt {attempt}): {e}")

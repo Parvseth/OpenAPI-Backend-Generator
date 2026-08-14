@@ -25,7 +25,8 @@ def generate(
     input: str = typer.Option(..., "--input", "-i", help="Path to OpenAPI spec (YAML or JSON)"),
     output: str = typer.Option("./generated_backend", "--output", "-o", help="Target output directory"),
     use_ai: bool = typer.Option(True, "--use-ai/--no-ai", help="Enable Groq/GPT-4 AI logic generation"),
-    sdk: bool = typer.Option(True, "--sdk/--no-sdk", help="Generate TypeScript SDK using openapi-typescript-codegen")
+    sdk: bool = typer.Option(True, "--sdk/--no-sdk", help="Generate TypeScript SDK using openapi-typescript-codegen"),
+    git_pr: bool = typer.Option(False, "--git-pr", help="Automate PR workflow: branch, commit, and generate markdown diff")
 ):
     """
     Generate a production-ready FastAPI backend with Clean Architecture, Docker, and Pytest.
@@ -48,7 +49,7 @@ def generate(
 
     # 2. Codegen Engine
     with console.status("[bold blue]Rendering Clean Architecture Templates & AI Business Logic...[/bold blue]"):
-        generate_clean_backend(ir_spec, output, use_ai=use_ai, spec_file_path=input, generate_sdk=sdk)
+        generate_clean_backend(ir_spec, output, use_ai=use_ai, spec_file_path=input, generate_sdk=sdk, git_pr=git_pr)
 
     elapsed = round(time.time() - start_time, 2)
     console.print(Panel(

@@ -54,7 +54,20 @@ def render_and_write(template_name: str, context: dict, target_file_path: str, f
     with open(target_file_path, "w", encoding="utf-8") as f:
         f.write(rendered)
 
-def generate_clean_backend(ir_spec: IRSpec, output_dir: str, use_ai: bool = True, test_driven_healing: bool = True, spec_file_path: str = None, generate_sdk: bool = True):
+def generate_clean_backend(ir_spec: IRSpec, output_dir: str, use_ai: bool = True, test_driven_healing: bool = True, spec_file_path: Optional[str] = None, generate_sdk: bool = True, git_pr: bool = False):
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Initialize Git branching if requested
+    if git_pr:
+        logger.info("🌿 [PR Automation] Checking Git repository...")
+        if not os.path.exists(os.path.join(output_dir, ".git")):
+            subprocess.run(["git", "init"], cwd=output_dir, check=True)
+            logger.info("🌿 [PR Automation] Initialized new Git repository.")
+        
+        branch_name = f"auto-update-{int(os.path.getctime(output_dir) if os.path.exists(output_dir) else 0)}"
+        logger.info(f"🌿 [PR Automation] Creating branch {branch_name}")
+        subprocess.run(["git", "checkout", "-b", branch_name], cwd=output_dir, capture_output=True)
+
     logger.info(f"🚀 Starting Codegen Engine for spec: {ir_spec.title} ({len(ir_spec.models)} models, {len(ir_spec.routes)} routes)")
 
     # Root directories
@@ -172,6 +185,17 @@ def client():
     render_and_write("docker_compose.j2", {}, os.path.join(output_dir, "docker-compose.yml"))
     render_and_write("ci_cd_github.j2", {}, os.path.join(github_dir, "ci.yml"))
     render_and_write("sonar_properties.j2", {}, os.path.join(output_dir, "sonar-project.properties"))
+    
+    # 8. TS React Query SDK
+    if generate_sdk:
+        context = {"ir_spec": ir_spec, "models": ir_spec.models}
+        sdk_dir = os.path.join(output_dir, "sdk", "frontend")
+        os.makedirs(sdk_dir, exist_ok=True)
+        render_and_write("sdk/typescript/types.ts.j2", context, os.path.join(sdk_dir, "types.ts"))
+        render_and_write("sdk/typescript/api.ts.j2", context, os.path.join(sdk_dir, "api.ts"))
+        render_and_write("sdk/typescript/hooks.ts.j2", context, os.path.join(sdk_dir, "hooks.ts"))
+        logger.info("📦 Generated React Query/TypeScript SDK in 'sdk/frontend'")
+        
     render_and_write("readme.j2", {"title": ir_spec.title, "version": ir_spec.version}, os.path.join(output_dir, "README.md"))
 
     # Requirements for generated app
@@ -196,4 +220,25 @@ opentelemetry-instrumentation-fastapi>=0.41b0
     logger.info(f"✨ Successfully generated clean backend at '{output_dir}'")
     
     if use_ai and test_driven_healing:
+        from ai_engine.self_healing import run_self_healing_loop
         run_self_healing_loop(output_dir)
+
+    if git_pr:
+        logger.info("🌿 [PR Automation] Committing generated changes...")
+        subprocess.run(["git", "add", "."], cwd=output_dir)
+        subprocess.run(["git", "commit", "-m", "Auto-generated backend updates"], cwd=output_dir, capture_output=True)
+        
+        # Generate pr_summary.md
+        diff_result = subprocess.run(["git", "show", "--stat"], cwd=output_dir, capture_output=True, text=True)
+        diff_content = diff_result.stdout if diff_result.returncode == 0 else "No changes detected."
+        
+        pr_summary_path = os.path.join(output_dir, "..", "pr_summary.md")
+        with open(pr_summary_path, "w", encoding="utf-8") as f:
+            f.write("# Pull Request Summary\n\n")
+            f.write("## Automated Generation Report\n\n")
+            f.write("The AI Codegen Engine successfully rebuilt the backend architecture. Below is the generated diff summary:\n\n")
+            f.write("```diff\n")
+            f.write(diff_content)
+            f.write("\n```\n")
+            f.write("\n> *Please review the AST-protected custom business logic blocks to ensure no spec drift occurred.*\n")
+        logger.info(f"🌿 [PR Automation] PR Summary generated at {os.path.abspath(pr_summary_path)}")

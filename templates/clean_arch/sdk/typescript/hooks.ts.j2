@@ -1,0 +1,51 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { {% for model in models %}{{ model.name }}API{% if not loop.last %}, {% endif %}{% endfor %} } from "./api";
+import * as types from "./types";
+
+{% for model in models %}
+export const useGet{{ model.name }}s = () => {
+  return useQuery({
+    queryKey: ["{{ model.name.lower() }}s"],
+    queryFn: {{ model.name }}API.getAll,
+  });
+};
+
+export const useGet{{ model.name }} = (id: number) => {
+  return useQuery({
+    queryKey: ["{{ model.name.lower() }}s", id],
+    queryFn: () => {{ model.name }}API.getById(id),
+    enabled: !!id,
+  });
+};
+
+export const useCreate{{ model.name }} = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: types.{{ model.name }}Create) => {{ model.name }}API.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["{{ model.name.lower() }}s"] });
+    },
+  });
+};
+
+export const useUpdate{{ model.name }} = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: types.{{ model.name }}Update }) => {{ model.name }}API.update(id, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["{{ model.name.lower() }}s"] });
+      queryClient.invalidateQueries({ queryKey: ["{{ model.name.lower() }}s", variables.id] });
+    },
+  });
+};
+
+export const useDelete{{ model.name }} = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => {{ model.name }}API.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["{{ model.name.lower() }}s"] });
+    },
+  });
+};
+{% endfor %}
