@@ -5,7 +5,6 @@ from logger import logger
 from ai_engine.ast_verifier import verify_python_syntax, verify_ast
 from ai_engine.prompts import SYSTEM_PROMPT_SERVICE_LOGIC, SYSTEM_PROMPT_RETRY
 
-# Import Groq dynamically or fallback safely if API key missing
 def get_groq_client():
     try:
         from groq import Groq
@@ -15,6 +14,17 @@ def get_groq_client():
     except Exception:
         pass
     return None
+
+def route_model(task_type: str) -> str:
+    """
+    Dual-Tier Model Router: Routes to smaller/faster models for scaffolding 
+    and larger/slower models for complex reasoning.
+    """
+    if task_type == "scaffolding":
+        return "llama-3.1-8b-instant"
+    elif task_type == "reasoning":
+        return "llama-3.3-70b-versatile"
+    return "llama-3.3-70b-versatile"
 
 def strip_code_fences(code: str) -> str:
     """Removes ```python and ``` wrappers if present."""
@@ -76,13 +86,13 @@ except Exception as e:
     for attempt in range(1, max_retries + 1):
         try:
             response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model=route_model("scaffolding"),
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": current_prompt}
                 ],
                 temperature=0.2,
-                max_tokens=500
+                max_tokens=2048
             )
             raw_code = response.choices[0].message.content or ""
             clean_code = strip_code_fences(raw_code)

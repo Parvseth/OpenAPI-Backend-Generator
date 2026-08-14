@@ -157,8 +157,9 @@ Analyze the error and rewrite the entire Python service file to fix it. Return O
         prompt += "\n\nHINT: The error is an ImportError. Make sure the class name in your code EXACTLY matches the name being imported."
 
     try:
+        from ai_engine.generator import route_model
         response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+            model=route_model("reasoning"),
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT_TEST_HEALING},
                 {"role": "user", "content": prompt}
