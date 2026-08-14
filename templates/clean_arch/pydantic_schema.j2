@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime, date
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, Tag
 from typing_extensions import Annotated
 
 {% for model in models %}
@@ -52,7 +52,7 @@ class {{ model.name }}Response({{ model.name }}Base):
 {{ model.name }}Polymorphic = Annotated[
     Union[
 {% for key, target in model.polymorphic_mappings.items() %}
-        {{ target }}Response{% if not loop.last %},{% endif %}
+        Annotated[{{ target }}Response, Tag("{{ key }}")]{% if not loop.last %},{% endif %}
 {% endfor %}
     ],
     Field(discriminator="{{ model.discriminator_field }}")

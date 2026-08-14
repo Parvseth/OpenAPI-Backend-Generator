@@ -43,6 +43,8 @@ class SecurityASTVisitor(ast.NodeVisitor):
                             self.errors.append("Potential SQL Injection: f-string used inside text() block.")
                         elif isinstance(arg, ast.Call) and isinstance(arg.func, ast.Attribute) and arg.func.attr == "format":
                             self.errors.append("Potential SQL Injection: .format() used inside text() block.")
+                        elif isinstance(arg, ast.BinOp) and isinstance(arg.op, ast.Add):
+                            self.errors.append("Potential SQL Injection: raw string concatenation used inside text() block.")
 
         self.generic_visit(node)
 
