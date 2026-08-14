@@ -1,0 +1,18 @@
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, Date, ForeignKey, Text, JSON
+from sqlalchemy.orm import relationship
+from datetime import datetime
+from app.db.database import Base
+
+{% for model in models %}
+class {{ model.name }}(Base):
+    __tablename__ = "{{ model.table_name }}"
+
+{% for field in model.fields %}
+{% if field.is_primary_key %}
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+{% else %}
+    {{ field.name }} = Column({{ field.sqlalchemy_type }}{% if field.is_foreign_key %}, ForeignKey("{{ field.foreign_key_target }}"){% endif %}{% if not field.nullable %}, nullable=False{% endif %}{% if field.default != None %}, default={{ field.default }}{% endif %})
+{% endif %}
+{% endfor %}
+
+{% endfor %}

@@ -1,0 +1,37 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.core.config import settings
+from app.db.database import engine, Base
+{% for model in models %}
+from app.api import {{ model.name.lower() }}_router
+{% endfor %}
+
+# Create Database tables automatically
+Base.metadata.create_all(bind=engine)
+
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    version=settings.VERSION,
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+# CORS Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Healthcheck Endpoint
+@app.get("/health", tags=["Health"])
+def health_check():
+    return {"status": "ok", "project": settings.PROJECT_NAME, "version": settings.VERSION}
+
+# Register API Routers
+{% for model in models %}
+app.include_router({{ model.name.lower() }}_router.router, prefix=settings.API_V1_STR)
+{% endfor %}

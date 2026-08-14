@@ -1,0 +1,55 @@
+from typing import List
+from fastapi import APIRouter, Depends, status, Query
+from sqlalchemy.orm import Session
+from app.db.database import get_db
+from app.schemas import schemas
+from app.services.{{ model.name.lower() }}_service import {{ model.name }}Service
+
+router = APIRouter(prefix="/{{ model.table_name }}", tags=["{{ model.name }}"])
+
+@router.get("/", response_model=List[schemas.{{ model.name }}Response])
+def list_{{ model.table_name }}(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db)
+):
+    """List all {{ model.table_name }} with pagination."""
+    service = {{ model.name }}Service(db)
+    return service.get_all(skip=skip, limit=limit)
+
+@router.post("/", response_model=schemas.{{ model.name }}Response, status_code=status.HTTP_201_CREATED)
+def create_{{ model.name.lower() }}(
+    payload: schemas.{{ model.name }}Create,
+    db: Session = Depends(get_db)
+):
+    """Create a new {{ model.name }}."""
+    service = {{ model.name }}Service(db)
+    return service.create(payload)
+
+@router.get("/{item_id}", response_model=schemas.{{ model.name }}Response)
+def get_{{ model.name.lower() }}(
+    item_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get a {{ model.name }} by ID."""
+    service = {{ model.name }}Service(db)
+    return service.get_by_id(item_id)
+
+@router.put("/{item_id}", response_model=schemas.{{ model.name }}Response)
+def update_{{ model.name.lower() }}(
+    item_id: int,
+    payload: schemas.{{ model.name }}Update,
+    db: Session = Depends(get_db)
+):
+    """Update an existing {{ model.name }}."""
+    service = {{ model.name }}Service(db)
+    return service.update(item_id, payload)
+
+@router.delete("/{item_id}", status_code=status.HTTP_200_OK)
+def delete_{{ model.name.lower() }}(
+    item_id: int,
+    db: Session = Depends(get_db)
+):
+    """Delete a {{ model.name }}."""
+    service = {{ model.name }}Service(db)
+    return service.delete(item_id)

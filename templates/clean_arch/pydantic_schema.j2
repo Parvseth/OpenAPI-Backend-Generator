@@ -1,0 +1,38 @@
+from typing import Optional, List, Dict, Any
+from datetime import datetime, date
+from uuid import UUID
+from pydantic import BaseModel, ConfigDict, Field
+
+{% for model in models %}
+# ==========================================
+# {{ model.name }} Schemas
+# ==========================================
+
+class {{ model.name }}Base(BaseModel):
+{% set non_pk_fields = model.fields | selectattr('is_primary_key', 'equalto', false) | list %}
+{% if non_pk_fields %}
+{% for field in non_pk_fields %}
+    {{ field.name }}: {% if field.nullable %}Optional[{{ field.pydantic_type }}] = None{% else %}{{ field.pydantic_type }}{% endif %}
+{% endfor %}
+{% else %}
+    pass
+{% endif %}
+
+class {{ model.name }}Create({{ model.name }}Base):
+    pass
+
+class {{ model.name }}Update(BaseModel):
+{% if non_pk_fields %}
+{% for field in non_pk_fields %}
+    {{ field.name }}: Optional[{{ field.pydantic_type }}] = None
+{% endfor %}
+{% else %}
+    pass
+{% endif %}
+
+class {{ model.name }}Response({{ model.name }}Base):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+{% endfor %}
