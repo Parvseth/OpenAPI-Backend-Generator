@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.models import models
 from app.schemas import schemas
-from pydantic import model_dump
 
 class ProductService:
     def __init__(self, db: Session):
@@ -22,8 +21,12 @@ class ProductService:
         return item
 
     def create(self, data: schemas.ProductCreate) -> models.Product:
+        # === USER CODE START: custom_business_logic ===
+        # Hand-written integrations, external calls, or overrides
+
+# AI Generated Business Logic Block:
         try:
-            db_item = models.Product(**model_dump(data))
+            db_item = models.Product(**data.dict())
             self.db.add(db_item)
             self.db.commit()
             self.db.refresh(db_item)
@@ -32,9 +35,11 @@ class ProductService:
             self.db.rollback()
             raise HTTPException(status_code=400, detail=str(e))
 
+        # === USER CODE END ===
+
     def update(self, item_id: int, data: schemas.ProductUpdate) -> models.Product:
         db_item = self.get_by_id(item_id)
-        update_data = model_dump(data, exclude_unset=True)
+        update_data = data.model_dump(exclude_unset=True)
         for key, value in update_data.items():
             setattr(db_item, key, value)
         self.db.commit()

@@ -21,10 +21,8 @@ class {{ model.name }}Service:
         return item
 
     def create(self, data: schemas.{{ model.name }}Create) -> models.{{ model.name }}:
-        ##################################################
-        # Developer Customization Starts Here
-        # TODO: Add domain business rules & validation
-        ##################################################
+        # === USER CODE START: custom_business_logic ===
+        # Hand-written integrations, external calls, or overrides
 {% if custom_logic %}
 {{ custom_logic }}
 {% elif ai_create_logic %}
@@ -37,6 +35,7 @@ class {{ model.name }}Service:
         self.db.refresh(db_item)
         return db_item
 {% endif %}
+        # === USER CODE END ===
 
     def update(self, item_id: int, data: schemas.{{ model.name }}Update) -> models.{{ model.name }}:
         db_item = self.get_by_id(item_id)

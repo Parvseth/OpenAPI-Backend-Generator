@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 import shutil
+from typing import Optional
 from jinja2 import Environment, FileSystemLoader
 from parser.ir_models import IRSpec
 from ai_engine.generator import generate_ai_service_logic
@@ -13,17 +14,33 @@ from logger import logger
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates", "clean_arch")
 env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
 
-def extract_custom_logic(file_path: str) -> str | None:
-    if not os.path.exists(file_path):
+def extract_custom_logic(service_path: str) -> Optional[str]:
+    """
+    Safely extract user's manual business logic from an existing service file
+    by looking between the AST protected block markers.
+    """
+    if not os.path.exists(service_path):
         return None
-    with open(file_path, "r", encoding="utf-8") as f:
-        content = f.read()
-    
-    # Regex to extract everything between the developer customization block and the update method
-    pattern = r"(?s)# Developer Customization Starts Here\s*# TODO: Add domain business rules & validation\s*##################################################(.*?)(?=\s*def update\()"
-    match = re.search(pattern, content)
-    if match:
-        return match.group(1).strip("\n")
+
+    try:
+        with open(service_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Regex matches everything between the start and end markers
+        pattern = r"# === USER CODE START: custom_business_logic ===.*?# Hand-written integrations, external calls, or overrides\s*(.*?)\s*# === USER CODE END ==="
+        match = re.search(pattern, content, re.DOTALL)
+        
+        if match:
+            extracted = match.group(1).strip()
+            # Only return if the user actually added logic (more than just AI generated stuff)
+            # If the block only contains standard boilerplate, we could return None, 
+            # but for safety we'll return exactly what's there if it's not empty
+            if extracted:
+                return extracted
+                
+    except Exception as e:
+        print(f"Warning: Failed to extract custom logic from {service_path}: {e}")
+        
     return None
 
 def render_and_write(template_name: str, context: dict, target_file_path: str, format_py: bool = False):

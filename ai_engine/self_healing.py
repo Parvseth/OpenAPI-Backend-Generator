@@ -21,9 +21,23 @@ def run_self_healing_loop(output_dir: str, max_retries: int = 3) -> bool:
     for attempt in range(1, max_retries + 1):
         logger.info(f"🧪 [Self-Healing] Running tests (Attempt {attempt}/{max_retries})...")
         
-        # Run pytest
+        # Build the docker image for testing
+        try:
+            logger.info(f"🐳 [Self-Healing] Building Docker image for test isolation...")
+            subprocess.run(
+                ["docker", "build", "-t", "backend-test-env", "."],
+                cwd=output_dir, capture_output=True, text=True, check=True
+            )
+        except FileNotFoundError:
+            logger.warning("⚠️ [Self-Healing] Docker is not installed. Skipping test-driven self-healing.")
+            return False
+        except subprocess.CalledProcessError as e:
+            logger.error(f"❌ [Self-Healing] Docker build failed:\n{e.stderr}")
+            return False
+
+        # Run pytest inside Docker with no network access
         result = subprocess.run(
-            ["pytest", "tests/"],
+            ["docker", "run", "--rm", "--network", "none", "backend-test-env", "pytest", "tests/"],
             cwd=output_dir,
             capture_output=True,
             text=True
@@ -31,10 +45,22 @@ def run_self_healing_loop(output_dir: str, max_retries: int = 3) -> bool:
         
         if result.returncode == 0:
             logger.info("✅ [Self-Healing] All integration tests passed!")
-            return True
             
-        logger.warning(f"⚠️ [Self-Healing] Tests failed (Attempt {attempt})")
-        error_log = result.stdout + "\n" + result.stderr
+            # Run Bandit SAST scan
+            logger.info("🛡️ [Self-Healing] Running Bandit SAST Security Scan...")
+            bandit_result = subprocess.run(
+                ["docker", "run", "--rm", "backend-test-env", "bash", "-c", "pip install bandit && bandit -r app/ -f txt"],
+                cwd=output_dir, capture_output=True, text=True
+            )
+            if bandit_result.returncode == 0:
+                logger.info("✅ [Self-Healing] No critical security vulnerabilities found.")
+                return True
+            else:
+                logger.warning(f"⚠️ [Self-Healing] Bandit security scan failed (Attempt {attempt})")
+                error_log = bandit_result.stdout + "\n" + bandit_result.stderr
+        else:
+            logger.warning(f"⚠️ [Self-Healing] Tests failed (Attempt {attempt})")
+            error_log = result.stdout + "\n" + result.stderr
         
         # Determine which test failed and map it to the service file
         failed_services = extract_failed_services(error_log)
