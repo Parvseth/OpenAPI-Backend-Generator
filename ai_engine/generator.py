@@ -6,14 +6,18 @@ from ai_engine.ast_verifier import verify_python_syntax, verify_ast
 from ai_engine.prompts import SYSTEM_PROMPT_SERVICE_LOGIC, SYSTEM_PROMPT_RETRY
 
 def get_groq_client():
-    try:
-        from groq import Groq
-        api_key = os.environ.get("GROQ_API_KEY")
-        if api_key:
-            return Groq(api_key=api_key)
-    except Exception:
-        pass
-    return None
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        return None
+    from groq import Groq
+    return Groq(api_key=api_key)
+
+def get_async_groq_client():
+    api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        return None
+    from groq import AsyncGroq
+    return AsyncGroq(api_key=api_key)
 
 def route_model(task_type: str) -> str:
     """
@@ -38,35 +42,45 @@ def strip_code_fences(code: str) -> str:
         code = "\n".join(lines).strip()
     return code
 
-def generate_ai_service_logic(
+async def generate_ai_service_logic(
     route_summary: str,
     method: str,
     path: str,
-    model_name: str,
+    model,
     operation_id: str,
     max_retries: int = 3
 ) -> str:
-    client = get_groq_client()
+    client = get_async_groq_client()
+    
+    # Semantic Chunking Context Injection
+    fields_info = "\n".join([f"- {f.name} ({f.python_type})" for f in model.fields])
+    rel_info = "\n".join([f"- {r.name} -> {r.target_model}" for r in model.relationships])
     
     prompt = f"""Write ONLY the Python statements for the inside of a method body in a Service class.
 
 Method: {method}
 Path: {path}
 Summary: {route_summary}
-Target Model: models.{model_name}
+Target Model: models.{model.name}
 Operation ID: {operation_id}
+
+Schema Context (Use this to write accurate database insertions):
+Fields:
+{fields_info}
+Relationships:
+{rel_info}
 
 Rules:
 - Do NOT write 'def function_name(...):' or nested function definitions.
 - Use `self.db` for database session queries.
-- Use `models.{model_name}` for SQLAlchemy model class.
+- Use `models.{model.name}` for SQLAlchemy model class.
 - Use `data` for Pydantic schema input.
 - Wrap creation in try/except with `self.db.rollback()` and `raise HTTPException(status_code=400, detail=str(e))` if error.
 - Return the created/retrieved model instance.
 
 Example output:
 try:
-    db_item = models.{model_name}(**data.model_dump())
+    db_item = models.{model.name}(**data.model_dump())
     self.db.add(db_item)
     self.db.commit()
     self.db.refresh(db_item)
@@ -78,14 +92,16 @@ except Exception as e:
 
     if not client:
         logger.warning(f"GROQ_API_KEY not set. Using deterministic fallback for {method} {path}.")
-        return generate_deterministic_fallback(method, model_name, operation_id)
+        return generate_deterministic_fallback(method, model.name, operation_id)
 
     current_prompt = prompt
     system_prompt = SYSTEM_PROMPT_SERVICE_LOGIC
 
-    for attempt in range(1, max_retries + 1):
+    attempt = 0
+    while attempt < max_retries:
+        attempt += 1
         try:
-            response = client.chat.completions.create(
+            response = await client.chat.completions.create(
                 model=route_model("scaffolding"),
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -123,7 +139,7 @@ except Exception as e:
             logger.error(f"Error calling LLM API (Attempt {attempt}): {e}")
 
     logger.warning(f"Falling back to deterministic logic for {method} {path}")
-    return generate_deterministic_fallback(method, model_name, operation_id)
+    return generate_deterministic_fallback(method, model.name, operation_id)
 
 def generate_deterministic_fallback(method: str, model_name: str, operation_id: str) -> str:
     m = method.upper()

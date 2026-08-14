@@ -126,30 +126,39 @@ def generate_clean_backend(ir_spec: IRSpec, output_dir: str, use_ai: bool = True
     render_and_write("sqlalchemy_model.j2", {"models": ir_spec.models}, os.path.join(models_dir, "models.py"), format_py=True)
 
     # 3. Services (with AI logic generation option & Safe Code Merging)
-    for model in ir_spec.models:
-        service_file = os.path.join(services_dir, f"{model.name.lower()}_service.py")
-        
-        custom_logic = extract_custom_logic(service_file)
-        ai_create_logic = None
-        
-        if use_ai and not custom_logic:
-            try:
-                raw_ai = generate_ai_service_logic(
-                    route_summary=f"Create a new {model.name}",
-                    method="POST",
-                    path=f"/{model.table_name}",
-                    model_name=model.name,
-                    operation_id=f"create_{model.name.lower()}"
-                )
-                ai_create_logic = "\n".join([f"        {line}" for line in raw_ai.splitlines() if line.strip()])
-            except Exception as e:
-                logger.warning(f"AI Service logic failed for {model.name}: {e}")
+    import asyncio
 
-        render_and_write("service_layer.j2", {
-            "model": model, 
-            "ai_create_logic": ai_create_logic,
-            "custom_logic": custom_logic
-        }, service_file, format_py=True)
+    async def generate_single_service(model, sem):
+        async with sem:
+            service_file = os.path.join(services_dir, f"{model.name.lower()}_service.py")
+            custom_logic = extract_custom_logic(service_file)
+            ai_create_logic = None
+            
+            if use_ai and not custom_logic:
+                try:
+                    raw_ai = await generate_ai_service_logic(
+                        route_summary=f"Create a new {model.name}",
+                        method="POST",
+                        path=f"/{model.table_name}",
+                        model=model,
+                        operation_id=f"create_{model.name.lower()}"
+                    )
+                    ai_create_logic = "\n".join([f"        {line}" for line in raw_ai.splitlines() if line.strip()])
+                except Exception as e:
+                    logger.warning(f"AI Service logic failed for {model.name}: {e}")
+
+            render_and_write("service_layer.j2", {
+                "model": model, 
+                "ai_create_logic": ai_create_logic,
+                "custom_logic": custom_logic
+            }, service_file, format_py=True)
+
+    async def generate_services_concurrently():
+        sem = asyncio.Semaphore(20)  # Tiered Batching (Concurrency limit)
+        tasks = [generate_single_service(model, sem) for model in ir_spec.models]
+        await asyncio.gather(*tasks)
+
+    asyncio.run(generate_services_concurrently())
 
     # 4. FastAPI Routers
     for model in ir_spec.models:
