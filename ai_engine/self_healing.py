@@ -72,10 +72,17 @@ def extract_failed_services(error_log: str) -> list[str]:
     for match in matches:
         failed_services.add(f"{match}_service")
         
-    # Match ImportErrors in service files
-    import_matches = re.findall(r"app[/\\]services[/\\]([a-zA-Z0-9_]+_service)\.py", error_log)
-    for match in import_matches:
-        failed_services.add(match)
+    # Regex 2: For ImportErrors caused by bad class names
+    # Example: ImportError: cannot import name 'CustomercreateService' from 'app.services.customercreate_service'
+    import_error_matches = re.findall(r"from 'app\.services\.(\w+)'", error_log)
+    for s in import_error_matches:
+        failed_services.add(f"{s}.py")
+
+    # Regex 3: For ImportErrors or syntax errors inside the service file itself
+    # Example: app\services\customer_service.py:6: in <module>
+    traceback_matches = re.findall(r"app[\\/]services[\\/](\w+\.py):", error_log)
+    for s in traceback_matches:
+        failed_services.add(s)
         
     return list(failed_services)
 

@@ -29,7 +29,7 @@ class CustomerService:
 
     def create(self, data: schemas.CustomerCreate) -> models.Customer:
         try:
-            db_item = models.Customer(**model_dump(data, exclude_unset=True))
+            db_item = models.Customer(**model_dump(data))
             self.db.add(db_item)
             self.db.commit()
             self.db.refresh(db_item)

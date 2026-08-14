@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from app.core.config import settings
 from app.db.database import engine, Base
 
@@ -26,6 +27,9 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc"
 )
+
+# OpenTelemetry Instrumentation
+FastAPIInstrumentor.instrument_app(app)
 
 # CORS Middleware
 app.add_middleware(

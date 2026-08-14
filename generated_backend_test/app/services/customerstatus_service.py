@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.models import models
 from app.schemas import schemas
-from pydantic import BaseModel
+from pydantic import model_dump
 
 class CustomerstatusService:
     def __init__(self, db: Session):
@@ -29,7 +29,7 @@ class CustomerstatusService:
 
     def create(self, data: schemas.CustomerstatusCreate) -> models.Customerstatus:
         try:
-            db_item = models.Customerstatus(**data.model_dump())
+            db_item = models.Customerstatus(**model_dump(data))
             self.db.add(db_item)
             self.db.commit()
             self.db.refresh(db_item)
@@ -41,7 +41,7 @@ class CustomerstatusService:
     def update(self, item_id: int, data: schemas.CustomerstatusUpdate) -> models.Customerstatus:
         try:
             db_item = self.get_by_id(item_id)
-            update_data = data.model_dump(exclude_unset=True)
+            update_data = model_dump(data, exclude_unset=True)
             for key, value in update_data.items():
                 setattr(db_item, key, value)
             self.db.commit()

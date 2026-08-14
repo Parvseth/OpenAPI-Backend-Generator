@@ -25,7 +25,9 @@ class {{ model.name }}Service:
         # Developer Customization Starts Here
         # TODO: Add domain business rules & validation
         ##################################################
-{% if ai_create_logic %}
+{% if custom_logic %}
+{{ custom_logic }}
+{% elif ai_create_logic %}
         # AI Generated Business Logic Block:
 {{ ai_create_logic }}
 {% else %}
