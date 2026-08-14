@@ -124,11 +124,32 @@ def parse_schema_to_model(model_name: str, schema: Dict[str, Any], full_spec: Di
             description="Auto-generated primary key"
         ))
 
+    # Polymorphism detection
+    is_polymorphic = False
+    discriminator_field = None
+    polymorphic_mappings = {}
+
+    discriminator = schema.get("discriminator", {})
+    if discriminator:
+        is_polymorphic = True
+        discriminator_field = discriminator.get("propertyName")
+        polymorphic_mappings = discriminator.get("mapping", {})
+        
+        if not polymorphic_mappings:
+            polymorph_types = schema.get("oneOf", []) or schema.get("anyOf", [])
+            for pt in polymorph_types:
+                if "$ref" in pt:
+                    target = pt["$ref"].split("/")[-1]
+                    polymorphic_mappings[target.lower()] = target
+
     return IRModel(
         name=to_camel_case(model_name),
         table_name=table_name,
         description=description,
-        fields=fields
+        fields=fields,
+        is_polymorphic=is_polymorphic,
+        discriminator_field=discriminator_field,
+        polymorphic_mappings=polymorphic_mappings
     )
 
 def parse_openapi_spec(spec_dict: Dict[str, Any]) -> IRSpec:

@@ -15,4 +15,7 @@ class {{ model.name }}(Base):
 {% endif %}
 {% endfor %}
 
+{% for rel in model.relationships %}
+    {{ rel.name }} = relationship("{{ rel.target_model }}"{% if rel.relationship_type == "one-to-many" %}, back_populates="{{ model.name | lower }}"{% endif %})
+{% endfor %}
 {% endfor %}

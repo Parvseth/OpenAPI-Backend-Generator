@@ -32,6 +32,9 @@ class IRModel(BaseModel):
     description: Optional[str] = None
     fields: List[IRField] = Field(default_factory=list)
     relationships: List[IRRelationship] = Field(default_factory=list)
+    is_polymorphic: bool = False
+    discriminator_field: Optional[str] = None
+    polymorphic_mappings: Dict[str, str] = Field(default_factory=dict)
 
 class IRParameter(BaseModel):
     name: str

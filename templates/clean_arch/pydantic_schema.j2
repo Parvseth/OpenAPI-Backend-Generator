@@ -1,7 +1,9 @@
-from typing import Optional, List, Dict, Any
+from __future__ import annotations
+from typing import Optional, List, Dict, Any, Union
 from datetime import datetime, date
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
+from typing_extensions import Annotated
 
 {% for model in models %}
 # ==========================================
@@ -35,4 +37,25 @@ class {{ model.name }}Response({{ model.name }}Base):
 
     model_config = ConfigDict(from_attributes=True)
 
+{% endfor %}
+
+{% for model in models %}
+{{ model.name }}Base.model_rebuild()
+{{ model.name }}Create.model_rebuild()
+{{ model.name }}Update.model_rebuild()
+{{ model.name }}Response.model_rebuild()
+{% endfor %}
+
+# Polymorphic Mappings
+{% for model in models %}
+{% if model.is_polymorphic %}
+{{ model.name }}Polymorphic = Annotated[
+    Union[
+{% for key, target in model.polymorphic_mappings.items() %}
+        {{ target }}Response{% if not loop.last %},{% endif %}
+{% endfor %}
+    ],
+    Field(discriminator="{{ model.discriminator_field }}")
+]
+{% endif %}
 {% endfor %}

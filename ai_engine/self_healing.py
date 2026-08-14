@@ -35,9 +35,15 @@ def run_self_healing_loop(output_dir: str, max_retries: int = 3) -> bool:
             logger.error(f"❌ [Self-Healing] Docker build failed:\n{e.stderr}")
             return False
 
-        # Run pytest inside Docker with no network access
+        # Run pytest inside Docker with no network access, memory/CPU limits, and read-only tests
         result = subprocess.run(
-            ["docker", "run", "--rm", "--network", "none", "backend-test-env", "pytest", "tests/"],
+            [
+                "docker", "run", "--rm", 
+                "--network", "none", 
+                "--memory=512m", "--cpus=1.0",
+                "backend-test-env", 
+                "bash", "-c", "chmod -R 555 tests/ && pytest tests/"
+            ],
             cwd=output_dir,
             capture_output=True,
             text=True
